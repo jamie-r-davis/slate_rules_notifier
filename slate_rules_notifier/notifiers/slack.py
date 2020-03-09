@@ -69,7 +69,6 @@ class SlackFormatter(logging.Formatter):
         Format message content, timestamp when it was logged, and a
         colored border depending on the severity of the message
         """
-        print(record)
         fields = getattr(record, "fields", [])
         actions = getattr(record, "actions", [])
         ret = {

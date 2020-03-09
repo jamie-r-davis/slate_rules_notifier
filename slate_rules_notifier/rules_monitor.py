@@ -4,6 +4,8 @@ from typing import List
 
 import requests
 
+from .logging import create_logger
+
 
 class Config(dict):
     def __init__(self, defaults: dict = None):
@@ -15,15 +17,21 @@ class Config(dict):
                 self[key] = getattr(obj, key)
 
 
-class RuleMonitor:
-    def __init__(self):
+class RulesMonitor:
+    def __init__(self, name, config=None, debug=False):
+        self.name = name
+        self.debug = debug
         self.config = Config()
+        if config:
+            self.config.from_object(config)
+        self.logger = create_logger(self)
 
     def fetch_queues(self):
         url = self.config.get("SLATE_ENDPOINT_URL")
         response = requests.get(url)
         response.raise_for_status()
         queues = response.json()["row"]
+        self.logger.debug(f"Queues retrieved: {queues}")
         return queues
 
     def filter_queues_by_threshold(self, queues: List[dict]) -> List[dict]:
@@ -57,10 +65,13 @@ class RuleMonitor:
                 "style": "danger",
             }
         ]
-        logging.critical(msg, extra={"fields": fields, "actions": actions})
+        self.logger.debug(f"Slack msg: {msg}, fields={fields}, actions={actions}")
+        self.logger.critical(msg, extra={"fields": fields, "actions": actions})
 
     def run(self):
         queues = self.fetch_queues()
         exceeded_queues = self.filter_queues_by_threshold(queues)
         if exceeded_queues:
             self.send_notification(exceeded_queues)
+        else:
+            self.logger.debug("No queues have exceeded their thresholds")
